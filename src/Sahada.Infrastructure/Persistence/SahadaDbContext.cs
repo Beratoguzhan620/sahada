@@ -1,5 +1,6 @@
 using Sahada.Core.Companies;
 using Sahada.Core.Customers;
+using Sahada.Core.Dispatching;
 using Sahada.Core.Parts;
 using Sahada.Core.Users;
 using Sahada.Core.WorkOrders;
@@ -7,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Sahada.Infrastructure.Persistence;
 
-/// <summary>Accounts, companies and their teams, customers with their sites and equipment, parts and work orders.</summary>
+/// <summary>Accounts, companies and their teams, customers with their sites and equipment, parts, work orders and the technicians who do them.</summary>
 public sealed class SahadaDbContext(DbContextOptions<SahadaDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
@@ -29,6 +30,8 @@ public sealed class SahadaDbContext(DbContextOptions<SahadaDbContext> options) :
     public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
 
     public DbSet<WorkOrderEvent> WorkOrderEvents => Set<WorkOrderEvent>();
+
+    public DbSet<TechnicianProfile> TechnicianProfiles => Set<TechnicianProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SahadaDbContext).Assembly);

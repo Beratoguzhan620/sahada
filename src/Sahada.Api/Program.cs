@@ -6,6 +6,7 @@ using Sahada.Api.Common;
 using Sahada.Api.Features.Auth;
 using Sahada.Api.Features.Companies;
 using Sahada.Api.Features.Customers;
+using Sahada.Api.Features.Dispatch;
 using Sahada.Api.Features.Parts;
 using Sahada.Api.Features.WorkOrders;
 using Sahada.Api.Logging;
@@ -105,6 +106,8 @@ app.MapMemberEndpoints();
 app.MapCustomerEndpoints();
 app.MapPartEndpoints();
 app.MapWorkOrderEndpoints();
+app.MapTechnicianEndpoints();
+app.MapBoardEndpoints();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });

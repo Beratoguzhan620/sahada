@@ -24,8 +24,8 @@ public sealed record PartDto(Guid Id, string Sku, string Name, decimal UnitPrice
 
 public sealed record WorkOrderSummaryDto(
     Guid Id, int Number, string Code, string Title, string Priority, string Status, Guid CustomerId, string CustomerName, Guid SiteId,
-    string SiteLabel, string City, string RequiredSkill, Guid? TechnicianId, string? TechnicianName, DateTimeOffset? ScheduledStart,
-    int EstimatedMinutes, DateTimeOffset DueAt, bool Overdue, DateTimeOffset CreatedAt);
+    string SiteLabel, string City, double Latitude, double Longitude, string RequiredSkill, Guid? TechnicianId, string? TechnicianName,
+    DateTimeOffset? ScheduledStart, int EstimatedMinutes, DateTimeOffset DueAt, bool Overdue, string Sla, DateTimeOffset CreatedAt);
 
 public sealed record CustomerRefDto(Guid Id, string Name, string Phone);
 
@@ -39,7 +39,25 @@ public sealed record HistoryDto(long Id, string Kind, Guid ActorId, string Actor
 
 public sealed record WorkOrderDto(
     Guid Id, int Number, string Code, string Title, string Description, string Priority, string Status, string RequiredSkill, int EstimatedMinutes,
-    DateTimeOffset DueAt, bool Overdue, CustomerRefDto Customer, SiteRefDto Site, EquipmentRefDto? Equipment, Guid? TechnicianId,
+    DateTimeOffset DueAt, bool Overdue, string Sla, CustomerRefDto Customer, SiteRefDto Site, EquipmentRefDto? Equipment, Guid? TechnicianId,
     string? TechnicianName, DateTimeOffset? ScheduledStart, DateTimeOffset? ScheduledEnd, DateTimeOffset? StartedAt, DateTimeOffset? CompletedAt,
     string HoldReason, string CancelReason, string Resolution, List<ChecklistItemDto> Checklist, List<HistoryDto> History,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+
+public sealed record TechnicianDto(
+    Guid UserId, string DisplayName, string Role, List<string> Skills, string BaseLabel, double BaseLatitude, double BaseLongitude,
+    TimeOnly ShiftStart, TimeOnly ShiftEnd, List<string> WorkDays, bool Active);
+
+public sealed record BoardTechnicianDto(
+    Guid UserId, string DisplayName, List<string> Skills, string BaseLabel, double BaseLatitude, double BaseLongitude, DateTimeOffset? ShiftStart,
+    DateTimeOffset? ShiftEnd, int BookedMinutes, int LoadPercent, List<WorkOrderSummaryDto> Jobs);
+
+public sealed record BoardDto(DateOnly Date, string TimeZone, List<BoardTechnicianDto> Technicians, List<WorkOrderSummaryDto> Unscheduled);
+
+public sealed record SlaDto(int Open, int OnTrack, int AtRisk, int Overdue, List<WorkOrderSummaryDto> Overdues, List<WorkOrderSummaryDto> AtRisks);
+
+public sealed record SuggestionDto(
+    Guid TechnicianId, string DisplayName, bool Eligible, DateTimeOffset? Start, DateTimeOffset? End, double? DistanceKm, int? TravelMinutes,
+    int LoadPercent, bool MeetsDeadline, int Score, List<string> Reasons);
+
+public sealed record SuggestionsDto(Guid WorkOrderId, DateOnly Date, List<SuggestionDto> Technicians);
