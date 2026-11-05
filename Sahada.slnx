@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sahada.Core/Sahada.Core.csproj" />
+    <Project Path="src/Sahada.Infrastructure/Sahada.Infrastructure.csproj" />
+    <Project Path="src/Sahada.Api/Sahada.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sahada.UnitTests/Sahada.UnitTests.csproj" />
+    <Project Path="tests/Sahada.IntegrationTests/Sahada.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
