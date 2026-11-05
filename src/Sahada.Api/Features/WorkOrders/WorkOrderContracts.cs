@@ -40,6 +40,8 @@ public sealed record WorkOrderSummary(
     Guid SiteId,
     string SiteLabel,
     string City,
+    double Latitude,
+    double Longitude,
     string RequiredSkill,
     Guid? TechnicianId,
     string? TechnicianName,
@@ -47,6 +49,7 @@ public sealed record WorkOrderSummary(
     int EstimatedMinutes,
     DateTimeOffset DueAt,
     bool Overdue,
+    SlaState Sla,
     DateTimeOffset CreatedAt);
 
 public sealed record WorkOrderResponse(
@@ -61,6 +64,7 @@ public sealed record WorkOrderResponse(
     int EstimatedMinutes,
     DateTimeOffset DueAt,
     bool Overdue,
+    SlaState Sla,
     CustomerRef Customer,
     SiteRef Site,
     EquipmentRef? Equipment,

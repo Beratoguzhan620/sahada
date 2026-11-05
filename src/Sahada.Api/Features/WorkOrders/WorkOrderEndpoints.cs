@@ -2,8 +2,10 @@ using System.Security.Claims;
 using Sahada.Api.Common;
 using Sahada.Api.Features.Companies;
 using Sahada.Api.Features.Customers;
+using Sahada.Api.Features.Dispatch;
 using Sahada.Core;
 using Sahada.Core.Companies;
+using Sahada.Core.Dispatching;
 using Sahada.Core.WorkOrders;
 using Sahada.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -28,7 +30,8 @@ internal static class WorkOrderEndpoints
         group.MapPut("/{workOrderId:guid}", Edit).WithSummary("Change what the job is about (dispatchers)");
         group.MapPost("/{workOrderId:guid}/checklist", AddChecklistItem).WithSummary("Add a checklist item (dispatchers)");
         group.MapPut("/{workOrderId:guid}/checklist/{itemId:guid}", SetChecklistItem).WithSummary("Tick or untick a checklist item");
-        group.MapPost("/{workOrderId:guid}/schedule", Schedule).WithSummary("Put the job in a technician's day (dispatchers)");
+        group.MapPost("/{workOrderId:guid}/schedule", Schedule).WithSummary("Put the job in a technician's day (dispatchers)")
+            .WithDescription("The technician needs the required skill, and the job has to fit in their shift without overlapping another one.");
         group.MapPost("/{workOrderId:guid}/unschedule", Unschedule).WithSummary("Take the job out of the schedule (dispatchers)");
         group.MapPost("/{workOrderId:guid}/status", ChangeStatus).WithSummary("Move the job along: EnRoute, InProgress, OnHold or Completed")
             .WithDescription("The assigned technician or a dispatcher. OnHold needs a `reason`; Completed needs a `resolution` and every checklist item ticked.");
@@ -241,18 +244,33 @@ internal static class WorkOrderEndpoints
         Guid companyId, Guid workOrderId, ScheduleRequest request, ClaimsPrincipal user, SahadaDbContext db, TimeProvider clock, CancellationToken ct)
     {
         var membership = await CompanyAccess.RequireAsync(db, companyId, user, Role.Dispatcher, ct);
-        var order = await FindAsync(db, companyId, workOrderId, membership, ct);
         var technician = await db.Memberships.AsNoTracking()
             .Where(m => m.CompanyId == companyId && m.UserId == request.TechnicianId)
             .Join(db.Users, m => m.UserId, u => u.Id, (m, u) => u.DisplayName)
             .SingleOrDefaultAsync(ct)
             ?? throw new DomainException(ErrorCodes.ValidationFailed, "The technician is not on this company's team.");
+        var profile = await db.TechnicianProfiles.AsNoTracking().SingleOrDefaultAsync(t => t.CompanyId == companyId && t.UserId == request.TechnicianId, ct)
+            ?? throw new DomainException(ErrorCodes.NotInField, $"{technician} is not on the board yet; set up their technician profile first.");
+        var zone = await DispatchData.ZoneAsync(db, companyId, ct);
+        var start = request.Start.ToUniversalTime();
+
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // One booking per technician at a time: two dispatchers filling the same afternoon cannot both win it.
+        await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock(hashtextextended({"technician:" + request.TechnicianId}, 0))", ct);
+        var order = await FindAsync(db, companyId, workOrderId, membership, ct);
+        var bookings = await DispatchData.BookingsAsync(db, companyId, [request.TechnicianId], start, start.AddMinutes(order.EstimatedMinutes), order.Id, ct);
+        if (Planner.Check(profile, bookings[request.TechnicianId].ToList(), order.RequiredSkill, start, order.EstimatedMinutes, zone) is { } problem)
+        {
+            throw problem;
+        }
 
         var now = clock.GetUtcNow();
         var from = order.Status;
-        order.Schedule(request.TechnicianId, request.Start.ToUniversalTime(), now);
-        db.WorkOrderEvents.Add(WorkOrderEvent.Record(order, WorkOrderEventKind.Scheduled, membership.UserId, now, now, $"{technician}, {order.ScheduledStart:u}", from, order.Status));
+        order.Schedule(request.TechnicianId, start, now);
+        var local = TimeZoneInfo.ConvertTime(start, zone);
+        db.WorkOrderEvents.Add(WorkOrderEvent.Record(order, WorkOrderEventKind.Scheduled, membership.UserId, now, now, $"{technician}, {local:yyyy-MM-dd HH:mm}", from, order.Status));
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return TypedResults.Ok(await WorkOrderQueries.DetailAsync(db, workOrderId, now, ct));
     }
 

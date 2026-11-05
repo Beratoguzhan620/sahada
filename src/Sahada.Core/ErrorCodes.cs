@@ -13,4 +13,8 @@ public static class ErrorCodes
     public const string RateLimited = "rate_limited";
     public const string NotAssigned = "not_assigned";
     public const string DuplicateSku = "duplicate_sku";
+    public const string NotInField = "not_in_field";
+    public const string LacksSkill = "lacks_skill";
+    public const string OutsideShift = "outside_shift";
+    public const string SlotTaken = "slot_taken";
 }

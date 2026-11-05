@@ -96,11 +96,66 @@ public static class TestApi
         return await response.ReadAsync<WorkOrderDto>();
     }
 
+    public static readonly TimeZoneInfo Istanbul = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+
+    /// <summary>The next weekday after today, in the company's zone.</summary>
+    public static DateOnly NextWorkday(this ApiFactory factory, int skip = 0)
+    {
+        var day = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(factory.Clock.GetUtcNow(), Istanbul).DateTime).AddDays(1);
+        while (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday || skip-- > 0)
+        {
+            day = day.AddDays(1);
+            while (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            {
+                day = day.AddDays(1);
+            }
+        }
+
+        return day;
+    }
+
+    /// <summary>A wall-clock time in Istanbul as an instant.</summary>
+    public static DateTimeOffset At(DateOnly day, int hour, int minute = 0) =>
+        new DateTimeOffset(day.ToDateTime(new TimeOnly(hour, minute)), Istanbul.GetUtcOffset(day.ToDateTime(new TimeOnly(hour, minute)))).ToUniversalTime();
+
+    public static object ProfileBody(string[]? skills = null, double latitude = 41.2867, double longitude = 36.33, string shiftStart = "08:30", string shiftEnd = "17:30", bool active = true) => new
+    {
+        skills = skills ?? ["hvac"],
+        baseLabel = "Depo",
+        baseLatitude = latitude,
+        baseLongitude = longitude,
+        shiftStart,
+        shiftEnd,
+        workDays = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" },
+        active,
+    };
+
+    /// <summary>Puts a team member on the board with a weekday 08:30–17:30 shift.</summary>
+    public static async Task<TechnicianDto> OnBoardAsync(this Firm firm, Person technician, object? profile = null)
+    {
+        var response = await firm.Owner.Http.PutAsJsonAsync($"{firm.Path}/technicians/{technician.Id}", profile ?? ProfileBody());
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        return await response.ReadAsync<TechnicianDto>();
+    }
+
+    /// <summary>A member of the team who is on the board.</summary>
+    public static async Task<Person> TechnicianAsync(this Firm firm, ApiFactory factory, string name = "Teknisyen Ali", object? profile = null)
+    {
+        var person = await factory.RegisterAsync(name);
+        await firm.AddMemberAsync(person, "Technician");
+        await firm.OnBoardAsync(person, profile);
+        return person;
+    }
+
+    public static async Task<HttpResponseMessage> ScheduleAsync(this Firm firm, Guid orderId, Person technician, DateTimeOffset start) =>
+        await firm.Owner.Http.PostAsJsonAsync($"{firm.Path}/work-orders/{orderId}/schedule", new { technicianId = technician.Id, start });
+
+    /// <summary>Opens an order and books it for the technician at 10:00 on the next weekday.</summary>
     public static async Task<WorkOrderDto> ScheduledAsync(this Firm firm, ApiFactory factory, Person technician, object? body = null)
     {
+        await firm.OnBoardAsync(technician);
         var order = await firm.OrderAsync(body);
-        var response = await firm.Owner.Http.PostAsJsonAsync($"{firm.Path}/work-orders/{order.Id}/schedule",
-            new { technicianId = technician.Id, start = factory.Clock.GetUtcNow().AddHours(1) });
+        var response = await firm.ScheduleAsync(order.Id, technician, At(factory.NextWorkday(), 10));
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
         return await response.ReadAsync<WorkOrderDto>();
     }

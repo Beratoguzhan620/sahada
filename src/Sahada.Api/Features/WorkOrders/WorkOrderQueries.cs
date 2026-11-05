@@ -24,6 +24,8 @@ internal static class WorkOrderQueries
             s.Id,
             s.Label,
             s.City,
+            s.Latitude,
+            s.Longitude,
             w.RequiredSkill,
             w.TechnicianId,
             db.Users.Where(u => u.Id == w.TechnicianId).Select(u => u.DisplayName).FirstOrDefault(),
@@ -31,6 +33,7 @@ internal static class WorkOrderQueries
             w.EstimatedMinutes,
             w.DueAt,
             w.Status != WorkOrderStatus.Completed && w.Status != WorkOrderStatus.Cancelled && w.DueAt < now,
+            SlaRules.Evaluate(w.Priority, w.Status, w.DueAt, w.ScheduledStart, w.EstimatedMinutes, w.CompletedAt, now),
             w.CreatedAt);
 
     public static async Task<WorkOrderResponse> DetailAsync(SahadaDbContext db, Guid workOrderId, DateTimeOffset now, CancellationToken ct)
@@ -64,6 +67,7 @@ internal static class WorkOrderQueries
             order.EstimatedMinutes,
             order.DueAt,
             order.IsOverdue(now),
+            SlaRules.Evaluate(order, now),
             new CustomerRef(customer.Id, customer.Name, customer.Phone),
             new SiteRef(site.Id, site.Label, site.Address, site.City, site.Latitude, site.Longitude, site.AccessNotes),
             equipment is null ? null : ToRef(equipment, now),
