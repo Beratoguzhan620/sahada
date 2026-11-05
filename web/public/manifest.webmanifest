@@ -1,0 +1,11 @@
+{
+  "name": "Sahada",
+  "short_name": "Sahada",
+  "description": "Your jobs for the day, with or without a signal.",
+  "start_url": "/tech",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F7F6F3",
+  "theme_color": "#8A5A00",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
