@@ -2,6 +2,7 @@ using Sahada.Core.Companies;
 using Sahada.Core.Customers;
 using Sahada.Core.Dispatching;
 using Sahada.Core.Parts;
+using Sahada.Core.Sync;
 using Sahada.Core.Users;
 using Sahada.Core.WorkOrders;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,12 @@ public sealed class SahadaDbContext(DbContextOptions<SahadaDbContext> options) :
     public DbSet<WorkOrderEvent> WorkOrderEvents => Set<WorkOrderEvent>();
 
     public DbSet<TechnicianProfile> TechnicianProfiles => Set<TechnicianProfile>();
+
+    public DbSet<PartLine> PartLines => Set<PartLine>();
+
+    public DbSet<Attachment> Attachments => Set<Attachment>();
+
+    public DbSet<SyncOperation> SyncOperations => Set<SyncOperation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SahadaDbContext).Assembly);

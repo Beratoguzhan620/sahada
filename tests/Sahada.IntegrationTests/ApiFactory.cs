@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using Npgsql;
+using Sahada.Infrastructure.Storage;
+using Sahada.IntegrationTests.Support;
 using Testcontainers.PostgreSql;
 
 namespace Sahada.IntegrationTests;
@@ -21,6 +23,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public string ConnectionString => _database.GetConnectionString();
 
+    /// <summary>Photos are kept in memory here; <see cref="StorageTests"/> runs the real store against MinIO.</summary>
+    public MemoryFileStore Files { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -28,10 +33,15 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Database:MigrateOnStartup", "true");
         builder.UseSetting("Jwt:SigningKey", SigningKey);
         builder.UseSetting("Auth:AttemptsPerMinute", "100000");
+        builder.UseSetting("Storage:ServiceUrl", "http://storage.invalid");
+        builder.UseSetting("Storage:AccessKey", "not-used");
+        builder.UseSetting("Storage:SecretKey", "not-used");
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
+            services.RemoveAll<IFileStore>();
+            services.AddSingleton<IFileStore>(Files);
         });
     }
 

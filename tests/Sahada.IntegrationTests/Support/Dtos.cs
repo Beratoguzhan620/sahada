@@ -35,13 +35,26 @@ public sealed record EquipmentRefDto(Guid Id, string Kind, string Brand, string 
 
 public sealed record ChecklistItemDto(Guid Id, int Position, string Text, bool Done, DateTimeOffset? ChangedAt);
 
-public sealed record HistoryDto(long Id, string Kind, Guid ActorId, string ActorName, DateTimeOffset At, string? FromStatus, string? ToStatus, string Detail);
+public sealed record HistoryDto(long Id, string Kind, Guid ActorId, string ActorName, DateTimeOffset At, string? FromStatus, string? ToStatus, string Detail, bool Flagged);
+
+public sealed record PartLineDto(Guid Id, Guid PartId, string Sku, string Name, decimal Quantity, decimal UnitPrice, decimal Total, DateTimeOffset AddedAt, bool Removed, bool Flagged);
+
+public sealed record PhotoDto(Guid Id, string ContentType, long SizeBytes, string Caption, DateTimeOffset UploadedAt, bool Flagged);
+
+public sealed record SignatureDto(string SignedBy, DateTimeOffset SignedAt, List<List<double[]>> Strokes);
+
+public sealed record ResultDto(Guid Id, string Outcome, string? Message, bool Duplicate);
+
+public sealed record PushDto(List<ResultDto> Results, DateTimeOffset ServerTime);
+
+public sealed record PullDto(string Cursor, DateTimeOffset ServerTime, List<WorkOrderDto> Orders, List<Guid> Assigned, List<PartDto>? Parts);
 
 public sealed record WorkOrderDto(
     Guid Id, int Number, string Code, string Title, string Description, string Priority, string Status, string RequiredSkill, int EstimatedMinutes,
     DateTimeOffset DueAt, bool Overdue, string Sla, CustomerRefDto Customer, SiteRefDto Site, EquipmentRefDto? Equipment, Guid? TechnicianId,
     string? TechnicianName, DateTimeOffset? ScheduledStart, DateTimeOffset? ScheduledEnd, DateTimeOffset? StartedAt, DateTimeOffset? CompletedAt,
-    string HoldReason, string CancelReason, string Resolution, List<ChecklistItemDto> Checklist, List<HistoryDto> History,
+    string HoldReason, string CancelReason, string Resolution, List<ChecklistItemDto> Checklist, List<PartLineDto> Parts, decimal PartsTotal,
+    List<PhotoDto> Photos, SignatureDto? Signature, int Flagged, List<HistoryDto> History,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 
 public sealed record TechnicianDto(

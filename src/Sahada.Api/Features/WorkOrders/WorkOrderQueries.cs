@@ -52,8 +52,12 @@ internal static class WorkOrderQueries
             join u in db.Users on e.ActorId equals u.Id
             where e.WorkOrderId == workOrderId
             orderby e.Id
-            select new WorkOrderEventResponse(e.Id, e.Kind, e.ActorId, u.DisplayName, e.At, e.FromStatus, e.ToStatus, e.Detail))
+            select new WorkOrderEventResponse(e.Id, e.Kind, e.ActorId, u.DisplayName, e.At, e.FromStatus, e.ToStatus, e.Detail, e.Flagged))
             .ToListAsync(ct);
+        var parts = await db.PartLines.AsNoTracking().Where(l => l.WorkOrderId == workOrderId).OrderBy(l => l.AddedAt).ThenBy(l => l.Id).ToListAsync(ct);
+        var photos = await db.Attachments.AsNoTracking().Where(a => a.WorkOrderId == workOrderId).OrderBy(a => a.UploadedAt).ThenBy(a => a.Id).ToListAsync(ct);
+        // Everything a device sends for a job it no longer had leaves a flagged line in the history.
+        var flagged = history.Count(h => h.Flagged);
 
         return new WorkOrderResponse(
             order.Id,
@@ -81,6 +85,13 @@ internal static class WorkOrderQueries
             order.CancelReason,
             order.Resolution,
             order.Checklist.OrderBy(i => i.Position).Select(i => new ChecklistItemResponse(i.Id, i.Position, i.Text, i.Done, i.ChangedAt)).ToList(),
+            parts.Select(l => new PartLineResponse(l.Id, l.PartId, l.Sku, l.Name, l.Quantity, l.UnitPriceMinor / 100m, l.TotalMinor / 100m, l.AddedAt, l.RemovedAt is not null, l.Flagged)).ToList(),
+            parts.Sum(l => l.TotalMinor) / 100m,
+            photos.Select(a => new AttachmentResponse(a.Id, a.ContentType, a.SizeBytes, a.Caption, a.UploadedAt, a.Flagged)).ToList(),
+            order.SignedAt is { } signedAt
+                ? new SignatureResponse(order.SignedBy, signedAt, SignatureStrokes.Decode(order.Signature).Select(s => (IReadOnlyList<double[]>)s.Select(p => new[] { p.X, p.Y }).ToList()).ToList())
+                : null,
+            flagged,
             history,
             order.CreatedAt,
             order.UpdatedAt);
