@@ -346,6 +346,65 @@ namespace Sahada.Infrastructure.Persistence.Migrations
                     b.ToTable("parts", (string)null);
                 });
 
+            modelBuilder.Entity("Sahada.Core.Sync.SyncOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<DateTimeOffset>("DeviceAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("device_at");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("message");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("outcome");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("WorkOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_order_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_sync_operations");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_sync_operations_user_id");
+
+                    b.HasIndex("WorkOrderId")
+                        .HasDatabaseName("ix_sync_operations_work_order_id");
+
+                    b.HasIndex("CompanyId", "ReceivedAt")
+                        .HasDatabaseName("ix_sync_operations_company_id_received_at");
+
+                    b.ToTable("sync_operations", (string)null);
+                });
+
             modelBuilder.Entity("Sahada.Core.Users.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -382,6 +441,73 @@ namespace Sahada.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_users_email");
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("Sahada.Core.WorkOrders.Attachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Caption")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("caption");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("content_type");
+
+                    b.Property<bool>("Flagged")
+                        .HasColumnType("boolean")
+                        .HasColumnName("flagged");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("sha256")
+                        .IsFixedLength();
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<DateTimeOffset>("UploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at");
+
+                    b.Property<Guid>("UploadedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by");
+
+                    b.Property<Guid>("WorkOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_order_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_attachments");
+
+                    b.HasIndex("UploadedBy")
+                        .HasDatabaseName("ix_attachments_uploaded_by");
+
+                    b.HasIndex("WorkOrderId")
+                        .HasDatabaseName("ix_attachments_work_order_id");
+
+                    b.ToTable("attachments", (string)null);
                 });
 
             modelBuilder.Entity("Sahada.Core.WorkOrders.ChecklistItem", b =>
@@ -424,6 +550,76 @@ namespace Sahada.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_checklist_items_work_order_id_position");
 
                     b.ToTable("checklist_items", (string)null);
+                });
+
+            modelBuilder.Entity("Sahada.Core.WorkOrders.PartLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AddedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("added_at");
+
+                    b.Property<Guid>("AddedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("added_by");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<bool>("Flagged")
+                        .HasColumnType("boolean")
+                        .HasColumnName("flagged");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("PartId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("part_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("numeric(9,2)")
+                        .HasColumnName("quantity");
+
+                    b.Property<DateTimeOffset?>("RemovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("removed_at");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("sku");
+
+                    b.Property<long>("UnitPriceMinor")
+                        .HasColumnType("bigint")
+                        .HasColumnName("unit_price_minor");
+
+                    b.Property<Guid>("WorkOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_order_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_part_lines");
+
+                    b.HasIndex("AddedBy")
+                        .HasDatabaseName("ix_part_lines_added_by");
+
+                    b.HasIndex("PartId")
+                        .HasDatabaseName("ix_part_lines_part_id");
+
+                    b.HasIndex("WorkOrderId")
+                        .HasDatabaseName("ix_part_lines_work_order_id");
+
+                    b.ToTable("part_lines", (string)null);
                 });
 
             modelBuilder.Entity("Sahada.Core.WorkOrders.WorkOrder", b =>
@@ -486,6 +682,10 @@ namespace Sahada.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("number");
 
+                    b.Property<Guid?>("PreviousTechnicianId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("previous_technician_id");
+
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -504,9 +704,28 @@ namespace Sahada.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(4000)")
                         .HasColumnName("resolution");
 
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer")
+                        .HasColumnName("revision");
+
                     b.Property<DateTimeOffset?>("ScheduledStart")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("scheduled_start");
+
+                    b.Property<string>("Signature")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("signature");
+
+                    b.Property<DateTimeOffset?>("SignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("signed_at");
+
+                    b.Property<string>("SignedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("signed_by");
 
                     b.Property<Guid>("SiteId")
                         .HasColumnType("uuid")
@@ -554,6 +773,9 @@ namespace Sahada.Infrastructure.Persistence.Migrations
                     b.HasIndex("EquipmentId")
                         .HasDatabaseName("ix_work_orders_equipment_id");
 
+                    b.HasIndex("PreviousTechnicianId")
+                        .HasDatabaseName("ix_work_orders_previous_technician_id");
+
                     b.HasIndex("SiteId")
                         .HasDatabaseName("ix_work_orders_site_id");
 
@@ -596,6 +818,10 @@ namespace Sahada.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("detail");
+
+                    b.Property<bool>("Flagged")
+                        .HasColumnType("boolean")
+                        .HasColumnName("flagged");
 
                     b.Property<string>("FromStatus")
                         .HasMaxLength(12)
@@ -710,6 +936,40 @@ namespace Sahada.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_parts_companies_company_id");
                 });
 
+            modelBuilder.Entity("Sahada.Core.Sync.SyncOperation", b =>
+                {
+                    b.HasOne("Sahada.Core.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_sync_operations_users_user_id");
+
+                    b.HasOne("Sahada.Core.WorkOrders.WorkOrder", null)
+                        .WithMany()
+                        .HasForeignKey("WorkOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_sync_operations_work_orders_work_order_id");
+                });
+
+            modelBuilder.Entity("Sahada.Core.WorkOrders.Attachment", b =>
+                {
+                    b.HasOne("Sahada.Core.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UploadedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_attachments_users_uploaded_by");
+
+                    b.HasOne("Sahada.Core.WorkOrders.WorkOrder", null)
+                        .WithMany()
+                        .HasForeignKey("WorkOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_attachments_work_orders_work_order_id");
+                });
+
             modelBuilder.Entity("Sahada.Core.WorkOrders.ChecklistItem", b =>
                 {
                     b.HasOne("Sahada.Core.WorkOrders.WorkOrder", null)
@@ -718,6 +978,30 @@ namespace Sahada.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_checklist_items_work_orders_work_order_id");
+                });
+
+            modelBuilder.Entity("Sahada.Core.WorkOrders.PartLine", b =>
+                {
+                    b.HasOne("Sahada.Core.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("AddedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_part_lines_users_added_by");
+
+                    b.HasOne("Sahada.Core.Parts.Part", null)
+                        .WithMany()
+                        .HasForeignKey("PartId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_part_lines_parts_part_id");
+
+                    b.HasOne("Sahada.Core.WorkOrders.WorkOrder", null)
+                        .WithMany()
+                        .HasForeignKey("WorkOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_part_lines_work_orders_work_order_id");
                 });
 
             modelBuilder.Entity("Sahada.Core.WorkOrders.WorkOrder", b =>
@@ -748,6 +1032,12 @@ namespace Sahada.Infrastructure.Persistence.Migrations
                         .HasForeignKey("EquipmentId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_work_orders_equipment_equipment_id");
+
+                    b.HasOne("Sahada.Core.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("PreviousTechnicianId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_work_orders_users_previous_technician_id");
 
                     b.HasOne("Sahada.Core.Customers.Site", null)
                         .WithMany()
