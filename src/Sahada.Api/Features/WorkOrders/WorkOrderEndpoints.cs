@@ -340,6 +340,7 @@ internal static class WorkOrderEndpoints
         var order = await FindAsync(db, companyId, workOrderId, membership, ct);
         RequireActor(order, membership);
         var now = clock.GetUtcNow();
+        order.Touch(now);
         db.WorkOrderEvents.Add(WorkOrderEvent.Note(order, membership.UserId, request.Text, now, now));
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(await WorkOrderQueries.DetailAsync(db, workOrderId, now, ct));

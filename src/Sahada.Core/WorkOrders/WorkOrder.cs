@@ -87,6 +87,9 @@ public sealed class WorkOrder
 
     public Guid? TechnicianId { get; private set; }
 
+    /// <summary>Who had the job before it was moved to someone else; their offline work still counts, flagged for review.</summary>
+    public Guid? PreviousTechnicianId { get; private set; }
+
     public DateTimeOffset? ScheduledStart { get; private set; }
 
     public DateTimeOffset? StartedAt { get; private set; }
@@ -99,11 +102,22 @@ public sealed class WorkOrder
 
     public string Resolution { get; private set; } = string.Empty;
 
+    /// <summary>The name the customer signed under.</summary>
+    public string SignedBy { get; private set; } = string.Empty;
+
+    public DateTimeOffset? SignedAt { get; private set; }
+
+    /// <summary>The signature as strokes of points between 0 and 1, see <see cref="SignatureStrokes"/>.</summary>
+    public string Signature { get; private set; } = string.Empty;
+
     public Guid CreatedBy { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
+
+    /// <summary>Goes up when something is added to the order (a note, a part, a photo), so devices see it changed.</summary>
+    public int Revision { get; private set; }
 
     public IReadOnlyList<ChecklistItem> Checklist => _checklist;
 
@@ -201,6 +215,11 @@ public sealed class WorkOrder
     public void Schedule(Guid technicianId, DateTimeOffset start, DateTimeOffset now)
     {
         Require("schedule", WorkOrderStatus.New, WorkOrderStatus.Scheduled, WorkOrderStatus.OnHold);
+        if (TechnicianId is { } current && current != technicianId)
+        {
+            PreviousTechnicianId = current;
+        }
+
         TechnicianId = technicianId;
         ScheduledStart = start;
         Status = WorkOrderStatus.Scheduled;
@@ -212,6 +231,7 @@ public sealed class WorkOrder
     public void Unschedule(DateTimeOffset now)
     {
         Require("unschedule", WorkOrderStatus.Scheduled);
+        PreviousTechnicianId = TechnicianId;
         TechnicianId = null;
         ScheduledStart = null;
         Status = WorkOrderStatus.New;
@@ -243,8 +263,11 @@ public sealed class WorkOrder
         UpdatedAt = now;
     }
 
-    /// <summary>Records what was done. Every checklist item has to be ticked first.</summary>
-    public void Complete(string resolution, DateTimeOffset at, DateTimeOffset now)
+    /// <summary>
+    /// Records what was done. Every checklist item has to be ticked first. Without a resolution, the one written
+    /// while working (<see cref="SetResolution"/>) is used.
+    /// </summary>
+    public void Complete(string? resolution, DateTimeOffset at, DateTimeOffset now)
     {
         Require("complete", WorkOrderStatus.InProgress);
         var open = _checklist.Count(i => !i.Done);
@@ -253,14 +276,45 @@ public sealed class WorkOrder
             throw new DomainException(ErrorCodes.InvalidState, open == 1 ? "One checklist item is not done yet." : $"{open} checklist items are not done yet.");
         }
 
-        Resolution = Text.CleanParagraphs(resolution, ResolutionMaxLength, "A resolution");
-        if (Resolution.Length < 3)
+        var text = Text.CleanParagraphs(string.IsNullOrWhiteSpace(resolution) ? Resolution : resolution, ResolutionMaxLength, "A resolution");
+        if (text.Length < 3)
         {
             throw new DomainException(ErrorCodes.ValidationFailed, "Say in a few words what was done.");
         }
 
+        Resolution = text;
+
         CompletedAt = at;
         Status = WorkOrderStatus.Completed;
+        UpdatedAt = now;
+    }
+
+    /// <summary>Saves the write-up while the work goes on; completing uses it unless given another.</summary>
+    public void SetResolution(string? text, DateTimeOffset now)
+    {
+        Require("take a resolution", WorkOrderStatus.EnRoute, WorkOrderStatus.InProgress, WorkOrderStatus.OnHold);
+        Resolution = Text.CleanParagraphs(text, ResolutionMaxLength, "A resolution");
+        UpdatedAt = now;
+    }
+
+    /// <summary>The customer signs off on site. A later signature replaces an earlier one.</summary>
+    public void Sign(string signedBy, IReadOnlyList<IReadOnlyList<SignaturePoint>> strokes, DateTimeOffset at, DateTimeOffset now)
+    {
+        if (Status is WorkOrderStatus.New)
+        {
+            throw new DomainException(ErrorCodes.InvalidState, "Nobody has been out to this job yet.");
+        }
+
+        SignedBy = Text.Clean(signedBy, 2, 100, "The signer's name");
+        Signature = SignatureStrokes.Encode(strokes);
+        SignedAt = at;
+        UpdatedAt = now;
+    }
+
+    /// <summary>Marks the order as changed so devices pick it up, when something was added to it.</summary>
+    public void Touch(DateTimeOffset now)
+    {
+        Revision++;
         UpdatedAt = now;
     }
 

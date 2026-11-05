@@ -8,10 +8,12 @@ using Sahada.Api.Features.Companies;
 using Sahada.Api.Features.Customers;
 using Sahada.Api.Features.Dispatch;
 using Sahada.Api.Features.Parts;
+using Sahada.Api.Features.Sync;
 using Sahada.Api.Features.WorkOrders;
 using Sahada.Api.Logging;
 using Sahada.Infrastructure;
 using Sahada.Infrastructure.Persistence;
+using Sahada.Infrastructure.Storage;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 using Serilog;
@@ -35,6 +37,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSahadaPersistence(connectionString);
 builder.Services.AddSahadaAuth(builder.Configuration);
+builder.Services.AddSahadaStorage(builder.Configuration);
+builder.Services.AddScoped<SyncService>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -108,6 +112,9 @@ app.MapPartEndpoints();
 app.MapWorkOrderEndpoints();
 app.MapTechnicianEndpoints();
 app.MapBoardEndpoints();
+app.MapSyncEndpoints();
+app.MapPhotoEndpoints();
+app.MapReportEndpoints();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
@@ -116,6 +123,8 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", false))
 {
     await DependencyInjection.MigrateAsync(app.Services);
 }
+
+await StorageSetup.InitializeAsync(app.Services);
 
 await app.RunAsync();
 

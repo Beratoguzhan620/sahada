@@ -78,6 +78,11 @@ public sealed record WorkOrderResponse(
     string CancelReason,
     string Resolution,
     IReadOnlyList<ChecklistItemResponse> Checklist,
+    IReadOnlyList<PartLineResponse> Parts,
+    decimal PartsTotal,
+    IReadOnlyList<AttachmentResponse> Photos,
+    SignatureResponse? Signature,
+    int Flagged,
     IReadOnlyList<WorkOrderEventResponse> History,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
@@ -90,4 +95,11 @@ public sealed record EquipmentRef(Guid Id, string Kind, string Brand, string Mod
 
 public sealed record ChecklistItemResponse(Guid Id, int Position, string Text, bool Done, DateTimeOffset? ChangedAt);
 
-public sealed record WorkOrderEventResponse(long Id, WorkOrderEventKind Kind, Guid ActorId, string ActorName, DateTimeOffset At, WorkOrderStatus? FromStatus, WorkOrderStatus? ToStatus, string Detail);
+public sealed record WorkOrderEventResponse(long Id, WorkOrderEventKind Kind, Guid ActorId, string ActorName, DateTimeOffset At, WorkOrderStatus? FromStatus, WorkOrderStatus? ToStatus, string Detail, bool Flagged);
+
+public sealed record PartLineResponse(Guid Id, Guid PartId, string Sku, string Name, decimal Quantity, decimal UnitPrice, decimal Total, DateTimeOffset AddedAt, bool Removed, bool Flagged);
+
+public sealed record AttachmentResponse(Guid Id, string ContentType, long SizeBytes, string Caption, DateTimeOffset UploadedAt, bool Flagged);
+
+/// <summary>Strokes of [x, y] points between 0 and 1, top left to bottom right.</summary>
+public sealed record SignatureResponse(string SignedBy, DateTimeOffset SignedAt, IReadOnlyList<IReadOnlyList<double[]>> Strokes);

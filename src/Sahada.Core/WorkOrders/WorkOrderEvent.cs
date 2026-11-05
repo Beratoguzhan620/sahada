@@ -9,6 +9,11 @@ public enum WorkOrderEventKind
     Unscheduled = 4,
     Note = 5,
     ChecklistChanged = 6,
+    PartUsed = 7,
+    PartRemoved = 8,
+    PhotoAdded = 9,
+    Signed = 10,
+    ResolutionSet = 11,
 }
 
 /// <summary>One line of a work order's history: who did what and when. Notes live here too.</summary>
@@ -41,9 +46,13 @@ public sealed class WorkOrderEvent
 
     public string Detail { get; private set; } = string.Empty;
 
-    public static WorkOrderEvent Record(WorkOrder order, WorkOrderEventKind kind, Guid actorId, DateTimeOffset at, DateTimeOffset now, string? detail = null, WorkOrderStatus? from = null, WorkOrderStatus? to = null) =>
+    /// <summary>Came in from a device after the job was cancelled or moved to someone else; a dispatcher should look.</summary>
+    public bool Flagged { get; private set; }
+
+    public static WorkOrderEvent Record(WorkOrder order, WorkOrderEventKind kind, Guid actorId, DateTimeOffset at, DateTimeOffset now, string? detail = null, WorkOrderStatus? from = null, WorkOrderStatus? to = null, bool flagged = false) =>
         new()
         {
+            Flagged = flagged,
             WorkOrderId = order.Id,
             CompanyId = order.CompanyId,
             Kind = kind,
@@ -55,8 +64,8 @@ public sealed class WorkOrderEvent
             Detail = detail is null ? string.Empty : detail.Length <= DetailMaxLength ? detail : detail[..DetailMaxLength],
         };
 
-    public static WorkOrderEvent Note(WorkOrder order, Guid actorId, string text, DateTimeOffset at, DateTimeOffset now) =>
+    public static WorkOrderEvent Note(WorkOrder order, Guid actorId, string? text, DateTimeOffset at, DateTimeOffset now, bool flagged = false) =>
         Record(order, WorkOrderEventKind.Note, actorId, at, now, Text.CleanParagraphs(text, DetailMaxLength, "A note") is { Length: > 0 } clean
             ? clean
-            : throw new DomainException(ErrorCodes.ValidationFailed, "A note cannot be empty."));
+            : throw new DomainException(ErrorCodes.ValidationFailed, "A note cannot be empty."), flagged: flagged);
 }
