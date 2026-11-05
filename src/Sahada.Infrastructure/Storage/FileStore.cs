@@ -101,9 +101,23 @@ public static class StorageSetup
     /// <summary>Creates the bucket when configured to; a store replaced in tests is left alone.</summary>
     public static async Task InitializeAsync(IServiceProvider services, CancellationToken ct = default)
     {
-        if (services.GetRequiredService<IOptions<StorageOptions>>().Value.CreateBucket && services.GetRequiredService<IFileStore>() is S3FileStore s3)
+        if (!services.GetRequiredService<IOptions<StorageOptions>>().Value.CreateBucket || services.GetRequiredService<IFileStore>() is not S3FileStore s3)
         {
-            await s3.EnsureBucketAsync(ct);
+            return;
+        }
+
+        // Object storage may still be starting next to the API (as in Compose): give it a little while.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await s3.EnsureBucketAsync(ct);
+                return;
+            }
+            catch (Exception) when (attempt < 15)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            }
         }
     }
 }

@@ -1,0 +1,78 @@
+# One command: docker compose up --build
+# The app: http://localhost:8080 · technician app: http://localhost:8080/tech · API reference: http://localhost:8080/scalar
+# Photos are kept in MinIO; its console is at http://localhost:9001 (user and password below).
+name: sahada
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: sahada
+      POSTGRES_USER: sahada
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sahada-local}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sahada -d sahada"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # S3-compatible object storage for job photos. MinIO no longer publishes images; this is a maintained build of it.
+  storage:
+    image: cgr.dev/chainguard/minio@sha256:3c60a2a8c4d33409a9bc7a623a7fcbfb4605adc3d89422d2f53b3f673a6e5597
+    command: ["server", "/home/nonroot/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-sahada-local}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:-sahada-local-secret}
+    ports:
+      - "9001:9001"
+    volumes:
+      # Mounted on the image's home folder, which the non-root user owns, so the volume is writable.
+      - storage-data:/home/nonroot
+
+  api:
+    build: .
+    restart: on-failure
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Sahada: "Host=db;Database=sahada;Username=sahada;Password=${POSTGRES_PASSWORD:-sahada-local}"
+      Database__MigrateOnStartup: "true"
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-local-signing-key-change-me-in-the-env-file-0123456789}
+      Auth__AttemptsPerMinute: ${AUTH_ATTEMPTS_PER_MINUTE:-10}
+      Storage__ServiceUrl: http://storage:9000
+      Storage__AccessKey: ${STORAGE_ACCESS_KEY:-sahada-local}
+      Storage__SecretKey: ${STORAGE_SECRET_KEY:-sahada-local-secret}
+      Storage__CreateBucket: "true"
+      # nginx is in front: per-address limits must see the browser's address, not nginx's.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q Healthy <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    restart: on-failure
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  db-data:
+  storage-data:
