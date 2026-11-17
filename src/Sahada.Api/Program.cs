@@ -37,7 +37,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSahadaPersistence(connectionString);
 builder.Services.AddSahadaAuth(builder.Configuration);
-builder.Services.AddSahadaStorage(builder.Configuration);
+builder.Services.AddSahadaStorage(builder.Configuration, connectionString);
 builder.Services.AddScoped<SyncService>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>

@@ -5,6 +5,7 @@ using Amazon.S3.Util;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace Sahada.Infrastructure.Storage;
 
@@ -20,6 +21,14 @@ public interface IFileStore
 public sealed class StorageOptions
 {
     public const string Section = "Storage";
+
+    /// <summary>
+    /// "S3" (the default) for an S3-compatible bucket; "Postgres" for a table in the application's database, where
+    /// there is no object storage to run next to it.
+    /// </summary>
+    public string Provider { get; set; } = "S3";
+
+    public bool UsesDatabase => string.Equals(Provider, "Postgres", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>An S3-compatible endpoint, such as MinIO's.</summary>
     public string ServiceUrl { get; set; } = string.Empty;
@@ -72,14 +81,28 @@ internal sealed class S3FileStore(IAmazonS3 s3, IOptions<StorageOptions> options
 
 public static class StorageSetup
 {
-    public static IServiceCollection AddSahadaStorage(this IServiceCollection services, IConfiguration configuration)
+    /// <param name="connectionString">The application's database, used when Storage:Provider is "Postgres".</param>
+    public static IServiceCollection AddSahadaStorage(this IServiceCollection services, IConfiguration configuration, string? connectionString = null)
     {
         services.AddOptions<StorageOptions>()
             .Bind(configuration.GetSection(StorageOptions.Section))
-            .Validate(o => Uri.TryCreate(o.ServiceUrl, UriKind.Absolute, out _), "Storage:ServiceUrl must be an absolute URL.")
-            .Validate(o => !string.IsNullOrWhiteSpace(o.AccessKey) && !string.IsNullOrWhiteSpace(o.SecretKey),
+            .Validate(o => o.UsesDatabase || Uri.TryCreate(o.ServiceUrl, UriKind.Absolute, out _), "Storage:ServiceUrl must be an absolute URL.")
+            .Validate(o => o.UsesDatabase || (!string.IsNullOrWhiteSpace(o.AccessKey) && !string.IsNullOrWhiteSpace(o.SecretKey)),
                 "Storage:AccessKey and Storage:SecretKey are required. Use 'dotnet user-secrets' or Storage__AccessKey and Storage__SecretKey.")
             .ValidateOnStart();
+
+        if (configuration.GetSection(StorageOptions.Section).Get<StorageOptions>() is { UsesDatabase: true })
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException("Storage:Provider \"Postgres\" keeps photos in the application's database, so it needs its connection string.");
+            }
+
+            services.AddSingleton(_ => new PostgresFileStore(NpgsqlDataSource.Create(connectionString)));
+            services.AddSingleton<IFileStore>(provider => provider.GetRequiredService<PostgresFileStore>());
+            return services;
+        }
+
         services.AddSingleton<IAmazonS3>(provider =>
         {
             var o = provider.GetRequiredService<IOptions<StorageOptions>>().Value;
@@ -101,6 +124,12 @@ public static class StorageSetup
     /// <summary>Creates the bucket when configured to; a store replaced in tests is left alone.</summary>
     public static async Task InitializeAsync(IServiceProvider services, CancellationToken ct = default)
     {
+        if (services.GetRequiredService<IFileStore>() is PostgresFileStore table)
+        {
+            await table.EnsureTableAsync(ct);
+            return;
+        }
+
         if (!services.GetRequiredService<IOptions<StorageOptions>>().Value.CreateBucket || services.GetRequiredService<IFileStore>() is not S3FileStore s3)
         {
             return;
