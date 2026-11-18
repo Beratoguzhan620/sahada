@@ -26,7 +26,7 @@ public sealed class DemoTests(ApiFactory factory)
     [Fact]
     public async Task The_demo_company_is_made_once_and_gets_a_board_of_jobs()
     {
-        var demo = new DemoOptions { Enabled = true };
+        var demo = new DemoOptions { Enabled = true, OpenJobs = 6 };
         var worker = new DemoWorker(Options.Create(demo), new TestClients(factory), factory.Services.GetRequiredService<IHostApplicationLifetime>(),
             factory.Clock, NullLogger<DemoWorker>.Instance);
         using var http = factory.CreateClient();
