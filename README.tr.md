@@ -16,6 +16,8 @@ Teknisyenleri sahaya iş yapmaya gönderen şirketler için saha servis yönetim
 
 ## Deneyin
 
+**Canlı demo:** [sahada-demo.onrender.com](https://sahada-demo.onrender.com). Samsun'da müşterileri, teknisyenleri ve panoda işleri olan bir klima servis şirketi. Giriş sayfasındaki düğmelerle dispeçer olarak günü planlayabilir (pano kimin gitmesi gerektiğini öneriyor) ya da teknisyen olarak bir işi fotoğrafı ve imzasıyla bitirebilirsin. Ücretsiz bir sunucuda, veritabanı ve fotoğraflar Neon'da çalışıyor: bir süre kimse açmadıysa ilk açılış bir dakika kadar sürebilir.
+
 ```bash
 docker compose up --build
 ```
