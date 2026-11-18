@@ -1,5 +1,5 @@
 # The public demo in one container: the API serves the built web app from wwwroot, so a single free web service
-# (Render) runs the whole thing next to a hosted PostgreSQL with PostGIS (Neon). Compose keeps nginx in front instead.
+# (Render) runs the whole thing next to a hosted PostgreSQL (Neon) that also keeps the photos. Compose keeps nginx in front instead.
 FROM node:22-alpine AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
