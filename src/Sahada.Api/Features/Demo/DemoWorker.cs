@@ -173,13 +173,18 @@ internal sealed partial class DemoWorker(
     {
         var c = $"/api/companies/{_company}";
         var company = await SendAsync<CompanyInfo>(http, HttpMethod.Get, c, _dispatcher.Token, null, ct);
-        if (company.OpenWorkOrders >= options.Value.OpenJobs)
+        var day = NextWorkingStart();
+        var booked = await SendAsync<OrderPage>(http, HttpMethod.Get, $"{c}/work-orders?status=Scheduled&status=EnRoute&status=InProgress&pageSize=100", _dispatcher.Token, null, ct);
+        var ahead = booked.Items.Count(o => o.ScheduledStart >= clock.GetUtcNow());
+
+        // Enough on the board and some of it still ahead; a visitor coming back the next day finds a fresh day planned,
+        // up to a limit, so a demo nobody opens for weeks does not pile up jobs.
+        if ((company.OpenWorkOrders >= options.Value.OpenJobs && ahead > 0) || company.OpenWorkOrders >= options.Value.OpenJobs * 5)
         {
             return;
         }
 
         var customers = await SendAsync<CustomerPage>(http, HttpMethod.Get, $"{c}/customers?pageSize=50", _dispatcher.Token, null, ct);
-        var day = NextWorkingStart();
         var free = _crew.ToDictionary(p => p.Key, _ => day);
         var started = new HashSet<string>();
         for (var i = 0; i < 6; i++)
@@ -207,7 +212,8 @@ internal sealed partial class DemoWorker(
                 continue;
             }
 
-            var key = Crew.Where(m => m.Skills.Contains(job.Skill)).Select(m => m.Key).Append("you").ElementAt(i % 2 == 0 ? 0 : 1);
+            // Every other booked job goes to the published technician, so signing in as them shows a day of work.
+            var key = i % 2 == 0 ? "you" : Crew.First(m => m.Skills.Contains(job.Skill)).Key;
             var start = free[key];
             free[key] = start.AddMinutes(job.Minutes + 30);
             try
@@ -216,7 +222,7 @@ internal sealed partial class DemoWorker(
                     new { technicianId = _crew[key].Id, start }, ct);
 
                 // A bot technician's first job of the round is already under way, so the board shows work in progress.
-                if (key != "you" && started.Add(key))
+                if (key != "you" && start <= clock.GetUtcNow().AddHours(1) && started.Add(key))
                 {
                     await SendAsync<JsonElement?>(http, HttpMethod.Post, $"{c}/work-orders/{order.Id}/status", _crew[key].Token,
                         new { status = "EnRoute", reason = (string?)null, resolution = (string?)null }, ct);
@@ -230,13 +236,13 @@ internal sealed partial class DemoWorker(
         }
     }
 
-    /// <summary>The next half hour of today's working hours in Samsun, or tomorrow morning once the day is nearly over.</summary>
+    /// <summary>The next half hour of today's working hours in Samsun (shifts end at 20:00), or tomorrow morning once the evening comes.</summary>
     private DateTimeOffset NextWorkingStart()
     {
         var local = TimeZoneInfo.ConvertTime(clock.GetUtcNow(), Zone);
         var today = DateOnly.FromDateTime(local.DateTime);
         var next = local.Date.AddHours(local.Hour).AddMinutes(local.Minute < 30 ? 30 : 60);
-        var start = local.Hour >= 15
+        var start = local.Hour >= 17
             ? today.AddDays(1).ToDateTime(new TimeOnly(9, 0))
             : next < local.Date.AddHours(9) ? today.ToDateTime(new TimeOnly(9, 0)) : next;
         return new DateTimeOffset(start, Zone.GetUtcOffset(start));
@@ -298,6 +304,10 @@ internal sealed partial class DemoWorker(
     private sealed record CustomerInfo(Guid Id, string Name, List<SiteInfo> Sites);
 
     private sealed record CustomerPage(List<IdOnly> Items);
+
+    private sealed record OrderInfo(DateTimeOffset? ScheduledStart);
+
+    private sealed record OrderPage(List<OrderInfo> Items);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "The demo company {Company} is running")]
     private static partial void LogReady(ILogger log, string company);
