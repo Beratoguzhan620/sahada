@@ -16,6 +16,8 @@ Field service management for companies that send technicians out to fix things: 
 
 ## Try it
 
+**Live demo:** [sahada-demo.onrender.com](https://sahada-demo.onrender.com). An air-conditioning service company in Samsun with customers, technicians and jobs on the board. Sign in from the buttons on the sign-in page as the dispatcher to plan the day (the board suggests who should go), or as a technician to work through a job, photos and signature included. It runs on a free server with the database, and the photos, on Neon: after a quiet spell the first visit can take about a minute.
+
 ```bash
 docker compose up --build
 ```
