@@ -1,0 +1,28 @@
+# The public demo on Render's free plan: one web service from deploy/demo/Dockerfile, with the database on Neon and
+# job photos kept in that database (no object storage to run next to it). Render asks for the database's connection
+# string when the blueprint is first applied; nothing secret is in here (the demo's sign-ins are published on purpose).
+services:
+  - type: web
+    name: sahada-demo
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./deploy/demo/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/ready
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: ConnectionStrings__Sahada
+        sync: false
+      - key: Jwt__SigningKey
+        generateValue: true
+      - key: Storage__Provider
+        value: Postgres
+      - key: Demo__Enabled
+        value: "true"
+      - key: Database__MigrateOnStartup
+        value: "true"
+      - key: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+        value: "true"
+      - key: PORT
+        value: "8080"
